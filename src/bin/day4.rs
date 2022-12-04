@@ -31,6 +31,10 @@ impl Range {
     fn contains(&self, other: &Range) -> bool {
         self.start <= other.start && self.end >= other.end
     }
+
+    fn overlaps(&self, other: &Range) -> bool {
+        self.start <= other.end && self.end >= other.start
+    }
 }
 
 #[derive(Debug)]
@@ -58,6 +62,9 @@ impl Pair {
     fn has_fully_contained(&self) -> bool {
         self.a.contains(&self.b) || self.b.contains(&self.a)
     }
+    fn has_overlap(&self) -> bool {
+        self.a.overlaps(&self.b)
+    }
 }
 
 #[derive(Debug)]
@@ -81,7 +88,7 @@ impl Inputs {
     }
 
     fn part2(&self) -> u32 {
-        unimplemented!()
+        self.0.iter().filter(|p| p.has_overlap()).count() as u32
     }
 }
 
