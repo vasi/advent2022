@@ -8,11 +8,24 @@ struct Input {
 }
 
 impl Input {
-    fn score(&self) -> i32 {
-        let iother = (self.other as i32) - ('A' as i32);
-        let ime = (self.me as i32) - ('X' as i32);
-        let result = (ime - iother + 1).rem_euclid(3);
+    fn iother(&self) -> i32 {
+        (self.other as i32) - ('A' as i32)
+    }
+
+    fn score(&self, ime: i32) -> i32 {
+        let result = (ime - self.iother() + 1).rem_euclid(3);
         1 + ime + result * 3
+    }
+
+    fn score1(&self) -> i32 {
+        let ime = (self.me as i32) - ('X' as i32);
+        self.score(ime)
+    }
+
+    fn score2(&self) -> i32 {
+        let result = (self.me as i32) - ('X' as i32);
+        let ime = (self.iother() - 1 + result).rem_euclid(3);
+        self.score(ime)
     }
 }
 
@@ -32,7 +45,12 @@ fn main() -> io::Result<()> {
         .lines()
         .collect::<io::Result<Vec<String>>>()?;
     let inputs: Vec<Input> = lines.iter().map(|l| parse(l)).collect();
-    let score = inputs.iter().map(|i| i.score()).sum::<i32>();
-    println!("Score: {}", score);
+
+    let score1 = inputs.iter().map(|i| i.score1()).sum::<i32>();
+    println!("Part 1: {}", score1);
+
+    let score2 = inputs.iter().map(|i| i.score2()).sum::<i32>();
+    println!("Part 2: {}", score2);
+
     Ok(())
 }
