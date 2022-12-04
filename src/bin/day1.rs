@@ -12,7 +12,10 @@ fn main() {
         })
         .filter(|e: &Vec<i32>| !e.is_empty())
         .collect();
-    let sums: Vec<i32> = elves.iter().map(|e| e.iter().sum::<i32>()).collect();
-    let max = sums.iter().max().unwrap();
-    println!("{:?}", max)
+    let mut sums: Vec<i32> = elves.iter().map(|e| e.iter().sum::<i32>()).collect();
+    sums.sort();
+    sums.reverse();
+
+    println!("max: {}", sums.first().unwrap());
+    println!("top3: {}", sums.iter().take(3).sum::<i32>());
 }
