@@ -1,8 +1,26 @@
+use crate::MoveMode::{InOrder, Reverse};
 use regex::Regex;
 use std::fs;
 
+#[derive(PartialEq)]
+enum MoveMode {
+    Reverse,
+    InOrder,
+}
+
 #[derive(Debug)]
 struct Stack(Vec<char>);
+
+impl Stack {
+    fn remove(&mut self, s: usize) -> Vec<char> {
+        let at = self.0.len() - s;
+        self.0.split_off(at)
+    }
+
+    fn add(&mut self, v: &mut Vec<char>) {
+        self.0.append(v)
+    }
+}
 
 #[derive(Debug)]
 struct Stacks(Vec<Stack>);
@@ -12,17 +30,18 @@ impl Stacks {
         self.0.get_mut(one_idx - 1).expect("no such stack")
     }
 
-    fn do_move(&mut self, mv: &Move) {
-        for _ in 0..mv.count {
-            let c = self.stack(mv.source).0.pop().expect("non-empty source");
-            self.stack(mv.dest).0.push(c);
+    fn do_move(&mut self, mv: &Move, mode: &MoveMode) {
+        let mut crates = self.stack(mv.source).remove(mv.count);
+        if *mode == Reverse {
+            crates.reverse();
         }
+        self.stack(mv.dest).add(&mut crates);
     }
 }
 
 #[derive(Debug)]
 struct Move {
-    count: i32,
+    count: usize,
     // one-based indexes
     source: usize,
     dest: usize,
@@ -35,7 +54,7 @@ struct Input {
 }
 
 impl Input {
-    fn parse(file: String) -> Input {
+    fn parse(file: &str) -> Input {
         let mut input = Input {
             stacks: Stacks(Vec::new()),
             moves: Vec::new(),
@@ -67,7 +86,7 @@ impl Input {
         for line in move_part.lines().filter(|l| !l.is_empty()) {
             let caps = move_re.captures(line).expect("regex match");
             input.moves.push(Move {
-                count: caps[1].parse::<i32>().expect("parse count"),
+                count: caps[1].parse::<usize>().expect("parse count"),
                 source: caps[2].parse::<usize>().expect("parse source"),
                 dest: caps[3].parse::<usize>().expect("parse dest"),
             })
@@ -76,14 +95,13 @@ impl Input {
         input
     }
 
-    fn execute(&mut self) {
+    fn execute(&mut self, mode: &MoveMode) {
         for m in &self.moves {
-            self.stacks.do_move(&m);
+            self.stacks.do_move(&m, mode);
         }
     }
 
-    fn part1(&mut self) -> String {
-        self.execute();
+    fn tops(&self) -> String {
         let tops = self
             .stacks
             .0
@@ -92,10 +110,16 @@ impl Input {
             .collect::<Vec<_>>();
         tops.join("")
     }
+
+    fn run(file: &str, mode: &MoveMode) -> String {
+        let mut input = Input::parse(file);
+        input.execute(mode);
+        input.tops()
+    }
 }
 
 fn main() {
     let file = std::env::args().nth(1).expect("need file");
-    let mut input = Input::parse(file);
-    println!("Part 1: {}", input.part1());
+    println!("Part 1: {}", Input::run(&file, &Reverse));
+    println!("Part 2: {}", Input::run(&file, &InOrder));
 }
