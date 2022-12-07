@@ -57,6 +57,18 @@ impl Dir {
         }
         sum
     }
+
+    fn part2(&self) -> u64 {
+        let target = self.size - 40_000_000;
+        self.iter()
+            .filter_map(|n| match n {
+                Node::Dir(d) => Some(d.size),
+                _ => None,
+            })
+            .filter(|s| *s >= target)
+            .min()
+            .unwrap()
+    }
 }
 
 struct DirIterator<'a> {
@@ -162,4 +174,5 @@ fn main() {
     let arg = std::env::args().nth(1).expect("need arg");
     let dir = parse(&arg);
     println!("Part 1: {}", dir.part1());
+    println!("Part 2: {}", dir.part2());
 }
