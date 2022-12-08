@@ -32,6 +32,7 @@ impl Dir {
         }
     }
 
+    #[allow(dead_code)]
     fn print(&self, name: &str, prefix: usize) {
         println!("{}- {} (dir)", "  ".repeat(prefix), name);
         for (n, c) in &self.children {
@@ -106,6 +107,7 @@ impl Node {
         }
     }
 
+    #[allow(dead_code)]
     fn print(&self, name: &str, prefix: usize) {
         match self {
             Node::File(s) => println!("{}- {} (file, size={})", "  ".repeat(prefix), name, s),
