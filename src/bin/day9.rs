@@ -8,7 +8,7 @@ struct Pos {
 }
 
 impl Pos {
-    fn mv(&mut self, dir: &str) {
+    fn move_head(&mut self, dir: &str) {
         match dir {
             "U" => self.y -= 1,
             "D" => self.y += 1,
@@ -27,20 +27,26 @@ impl Pos {
     }
 }
 
-fn part1(lines: &[&str]) -> usize {
+fn move_rope(rope: &mut Vec<Pos>, dir: &str) {
+    rope.get_mut(0).unwrap().move_head(dir);
+    for i in 1..rope.len() {
+        let last = rope.get(i - 1).unwrap().clone();
+        rope.get_mut(i).unwrap().follow(&last);
+    }
+}
+
+fn solve(lines: &[&str], len: usize) -> usize {
     let mut seen: HashSet<Pos> = HashSet::new();
-    let mut head = Pos { x: 0, y: 0 };
-    let mut tail = Pos { x: 0, y: 0 };
-    seen.insert(tail.clone());
+    let mut rope = vec![Pos { x: 0, y: 0 }; len];
+    seen.insert(rope.last().unwrap().clone());
 
     for line in lines {
         let parts: Vec<_> = line.split_whitespace().collect();
         let dir = parts[0];
         let count: usize = parts[1].parse().unwrap();
         for _ in 0..count {
-            head.mv(dir);
-            tail.follow(&head);
-            seen.insert(tail.clone());
+            move_rope(&mut rope, dir);
+            seen.insert(rope.last().unwrap().clone());
         }
     }
 
@@ -51,5 +57,6 @@ fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let contents = fs::read_to_string(arg).unwrap();
     let lines: Vec<_> = contents.lines().collect();
-    println!("Part 1: {}", part1(&lines));
+    println!("Part 1: {}", solve(&lines, 2));
+    println!("Part 2: {}", solve(&lines, 10));
 }
