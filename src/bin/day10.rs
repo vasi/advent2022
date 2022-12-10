@@ -56,8 +56,26 @@ fn part1(insts: &Vec<Inst>) -> i32 {
     ret
 }
 
+fn part2(insts: &Vec<Inst>) -> String {
+    let mut crt = String::new();
+    run(insts, |cycle, x| {
+        println!("cycle: {}, x: {}", cycle, x);
+        let cpix = (cycle - 1) % 40 + 1;
+        if cpix >= x && cpix < x + 3 {
+            crt += "#";
+        } else {
+            crt += ".";
+        }
+        if cpix == 40 {
+            crt += "\n";
+        }
+    });
+    crt
+}
+
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let insts = parse(&arg);
     println!("Part 1: {}", part1(&insts));
+    println!("{}", part2(&insts));
 }
