@@ -29,6 +29,21 @@ impl Op {
             Op::Times(o) => v * o.eval(v),
         }
     }
+
+    fn parse(opstr: &str, operandstr: &str) -> Op {
+        let operand = if operandstr == "old" {
+            Operand::Value
+        } else {
+            Operand::Imm(operandstr.parse().unwrap())
+        };
+        if opstr == "+" {
+            Op::Plus(operand)
+        } else if opstr == "*" {
+            Op::Times(operand)
+        } else {
+            panic!("unknown op")
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -46,20 +61,22 @@ struct Throw {
     target: usize,
 }
 
+struct Monkeys {
+    monkeys: Vec<Monkey>,
+    transform: Box<dyn Fn(u64) -> u64>,
+}
+
 impl Monkey {
-    fn turn(&mut self) -> Vec<Throw> {
+    fn turn(&mut self, transform: &Box<dyn Fn(u64) -> u64>) -> Vec<Throw> {
         let mut throws = Vec::new();
         for item in &self.items {
-            let v = self.op.eval(*item) / 3;
+            let v = transform(self.op.eval(*item));
             let target = if v % self.test_div == 0 {
                 self.target_true
             } else {
                 self.target_false
             };
-            throws.push(Throw {
-                item: v,
-                target: target,
-            });
+            throws.push(Throw { item: v, target });
             self.inspected += 1;
         }
         self.items.clear();
@@ -67,78 +84,89 @@ impl Monkey {
     }
 }
 
-fn round(monkeys: &mut Vec<Monkey>) {
-    for idx in 0..monkeys.len() {
-        for throw in monkeys[idx].turn() {
-            monkeys[throw.target].items.push(throw.item);
+impl Monkeys {
+    fn round(&mut self) {
+        for idx in 0..self.monkeys.len() {
+            for throw in self.monkeys[idx].turn(&self.transform) {
+                self.monkeys[throw.target].items.push(throw.item);
+            }
         }
     }
-}
 
-fn part1(monkeys: &mut Vec<Monkey>) -> usize {
-    for _ in 0..20 {
-        round(monkeys);
+    fn run(
+        file: &str,
+        rounds: usize,
+        gen_transform: fn(&Vec<Monkey>) -> Box<dyn Fn(u64) -> u64>,
+    ) -> u64 {
+        let ms = Monkeys::parse(file);
+        let transform = gen_transform(&ms);
+        let mut monkeys = Monkeys {
+            monkeys: ms,
+            transform,
+        };
+        for _ in 0..rounds {
+            monkeys.round();
+        }
+        let mut inspected = monkeys
+            .monkeys
+            .iter()
+            .map(|m| m.inspected as u64)
+            .collect::<Vec<_>>();
+        inspected.sort();
+        inspected.reverse();
+        inspected[0] * inspected[1]
     }
-    let mut inspected = monkeys.iter().map(|m| m.inspected).collect::<Vec<_>>();
-    inspected.sort();
-    inspected.reverse();
-    inspected[0] * inspected[1]
-}
 
-fn parse_op(opstr: &str, operandstr: &str) -> Op {
-    let operand = if operandstr == "old" {
-        Operand::Value
-    } else {
-        Operand::Imm(operandstr.parse().unwrap())
-    };
-    if opstr == "+" {
-        Op::Plus(operand)
-    } else if opstr == "*" {
-        Op::Times(operand)
-    } else {
-        panic!("unknown op")
+    fn part1(file: &str) -> u64 {
+        Monkeys::run(file, 20, |_| Box::new(|v| v / 3))
     }
-}
 
-fn parse(file: &str) -> Vec<Monkey> {
-    let contents = fs::read_to_string(file).unwrap();
-    let mut ret = Vec::new();
-    let re = Regex::new(
-        r"\s*Monkey \d+:
+    fn part2(file: &str) -> u64 {
+        Monkeys::run(file, 10_000, |monkeys| {
+            let modulus: u64 = monkeys.iter().map(|m| m.test_div).product();
+            Box::new(move |v| v % modulus)
+        })
+    }
+
+    fn parse(file: &str) -> Vec<Monkey> {
+        let contents = fs::read_to_string(file).unwrap();
+        let mut ret = Vec::new();
+        let re = Regex::new(
+            r"\s*Monkey \d+:
   Starting items: (?P<items>(?:\d+,\s)*\d+)
   Operation: new = old (?P<op>[+*]) (?P<operand>\d+|old)
   Test: divisible by (?P<div>\d+)
     If true: throw to monkey (?P<target_true>\d+)
     If false: throw to monkey (?P<target_false>\d+)",
-    )
-    .unwrap();
-    for cap in re.captures_iter(&contents) {
-        let items = cap
-            .name("items")
-            .unwrap()
-            .as_str()
-            .split(", ")
-            .map(|i| i.parse())
-            .collect::<Result<_, _>>()
-            .unwrap();
-
-        ret.push(Monkey {
-            items: items,
-            op: parse_op(
-                cap.name("op").unwrap().as_str(),
-                cap.name("operand").unwrap().as_str(),
-            ),
-            test_div: cap.name("div").unwrap().as_str().parse().unwrap(),
-            target_true: cap.name("target_true").unwrap().as_str().parse().unwrap(),
-            target_false: cap.name("target_false").unwrap().as_str().parse().unwrap(),
-            inspected: 0,
-        })
+        )
+        .unwrap();
+        for cap in re.captures_iter(&contents) {
+            let items = cap
+                .name("items")
+                .unwrap()
+                .as_str()
+                .split(", ")
+                .map(|i| i.parse())
+                .collect::<Result<_, _>>()
+                .unwrap();
+            ret.push(Monkey {
+                items,
+                op: Op::parse(
+                    cap.name("op").unwrap().as_str(),
+                    cap.name("operand").unwrap().as_str(),
+                ),
+                test_div: cap.name("div").unwrap().as_str().parse().unwrap(),
+                target_true: cap.name("target_true").unwrap().as_str().parse().unwrap(),
+                target_false: cap.name("target_false").unwrap().as_str().parse().unwrap(),
+                inspected: 0,
+            })
+        }
+        ret
     }
-    ret
 }
 
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
-    let mut monkeys = parse(&arg);
-    println!("Part 1: {}", part1(&mut monkeys));
+    println!("Part 1: {}", Monkeys::part1(&arg));
+    println!("Part 1: {}", Monkeys::part2(&arg));
 }
