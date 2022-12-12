@@ -75,26 +75,27 @@ impl Grid {
         self.rows[p.y as usize][p.x as usize]
     }
 
-    fn adjacent(&self, p: &Pos) -> Vec<Pos> {
+    fn reverse_adjacent(&self, p: &Pos) -> Vec<Pos> {
         let h = self.get(p);
         p.adjacent()
             .iter()
-            .filter(|o| self.valid(*o) && self.get(*o) - 1 <= h)
+            .filter(|o| self.valid(*o) && self.get(*o) + 1 >= h)
             .map(|o| o.clone())
             .collect()
     }
 
-    fn part1(&self) -> u32 {
+    fn reverse_djikstra<F: Fn(Pos) -> bool>(&self, start: &Pos, f: F) -> u32 {
         let mut seen = HashMap::<Pos, u32>::new();
         let mut todo = VecDeque::new();
-        todo.push_back(self.start);
-        seen.insert(self.start, 0);
+
+        seen.insert(start.clone(), 0);
+        todo.push_back(start.clone());
 
         loop {
             let p = todo.pop_front().unwrap();
             let dist = *seen.get(&p).unwrap();
-            for a in self.adjacent(&p) {
-                if a == self.end {
+            for a in self.reverse_adjacent(&p) {
+                if f(a) {
                     return dist + 1;
                 } else if !seen.contains_key(&a) {
                     seen.insert(a, dist + 1);
@@ -103,10 +104,19 @@ impl Grid {
             }
         }
     }
+
+    fn part1(&self) -> u32 {
+        self.reverse_djikstra(&self.end, |p| p == self.start)
+    }
+
+    fn part2(&self) -> u32 {
+        self.reverse_djikstra(&self.end, |p| self.get(&p) == 'a' as Val)
+    }
 }
 
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let grid = Grid::parse(&arg);
     println!("Part 1: {}", grid.part1());
+    println!("Part 2: {}", grid.part2());
 }
