@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::collections::BTreeSet;
 use std::iter::Peekable;
 use std::{env, fs};
 
@@ -118,10 +119,30 @@ impl Input {
         }
         sum
     }
+
+    fn part2(&self) -> usize {
+        let divs = vec!["[[2]]", "[[6]]"]
+            .iter()
+            .map(|s| Self::parse_val(&mut s.chars().peekable()))
+            .collect::<BTreeSet<_>>();
+        let mut all = self
+            .0
+            .iter()
+            .flat_map(|(a, b)| vec![a, b])
+            .chain(divs.iter())
+            .collect::<Vec<_>>();
+        all.sort();
+        all.iter()
+            .enumerate()
+            .filter(|(_, v)| divs.contains(v))
+            .map(|(i, _)| i + 1)
+            .product()
+    }
 }
 
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let input = Input::parse(&arg);
     println!("Part 1: {}", input.part1());
+    println!("Part 2: {}", input.part2());
 }
