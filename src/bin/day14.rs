@@ -33,7 +33,8 @@ enum Point {
 
 struct Cave {
     points: HashMap<Pos, Point>,
-    abyss: i32,
+    bottom: i32,
+    has_abyss: bool,
 }
 
 impl Cave {
@@ -45,13 +46,14 @@ impl Cave {
             p.y += (p2.y - p1.y).signum();
         }
         self.points.insert(p, Point::Rock);
-        self.abyss = self.abyss.max(p1.y.max(p2.y));
+        self.bottom = self.bottom.max(p1.y.max(p2.y));
     }
 
     fn parse(file: &str) -> Self {
         let mut cave = Cave {
             points: HashMap::new(),
-            abyss: 0,
+            bottom: 0,
+            has_abyss: true,
         };
         let contents = fs::read_to_string(file).unwrap();
         for line in contents.lines() {
@@ -70,8 +72,12 @@ impl Cave {
             .iter()
             .find(|o| !self.points.contains_key(o))
         {
-            if p.y > self.abyss {
-                return None;
+            if p.y >= self.bottom + 1 {
+                if self.has_abyss {
+                    return None;
+                } else {
+                    break;
+                }
             }
             p = *found;
         }
@@ -79,17 +85,28 @@ impl Cave {
         Some(p)
     }
 
-    fn part1(&mut self) -> usize {
+    fn part1(file: &str) -> usize {
+        let mut cave = Cave::parse(file);
         let mut dropped = 0;
-        while self.do_drop().is_some() {
+        while cave.do_drop().is_some() {
             dropped += 1;
         }
         dropped
+    }
+
+    fn part2(file: &str) -> usize {
+        let mut cave = Cave::parse(file);
+        cave.has_abyss = false;
+        let mut dropped = 0;
+        while cave.do_drop().unwrap() != Pos::new(500, 0) {
+            dropped += 1;
+        }
+        dropped + 1
     }
 }
 
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
-    let mut cave = Cave::parse(&arg);
-    println!("Part 1: {}", cave.part1());
+    println!("Part 1: {}", Cave::part1(&arg));
+    println!("Part 2: {}", Cave::part2(&arg));
 }
