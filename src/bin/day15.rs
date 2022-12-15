@@ -2,7 +2,7 @@ use regex::Regex;
 use std::ops::Range;
 use std::{env, fs};
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 struct Pos {
     x: i32,
     y: i32,
@@ -59,6 +59,25 @@ impl Input {
         Input { sensors }
     }
 
+    fn xranges(&self, y: i32) -> Vec<Range<i32>> {
+        let mut xmax = i32::MIN;
+        let mut ranges = self
+            .sensors
+            .iter()
+            .filter_map(|s| s.range_at(y))
+            .collect::<Vec<_>>();
+        let mut ret = Vec::new();
+        ranges.sort_by_key(|r| r.start);
+        for rng in ranges {
+            let clamped = xmax.max(rng.start)..rng.end;
+            if clamped.len() > 0 {
+                ret.push(clamped);
+            }
+            xmax = xmax.max(rng.end);
+        }
+        ret
+    }
+
     fn part1(&self, y: i32) -> usize {
         let mut beacons_at_y = self
             .sensors
@@ -69,25 +88,36 @@ impl Input {
             .collect::<Vec<_>>();
         beacons_at_y.dedup();
 
-        let mut xmax = i32::MIN;
         let mut found = 0;
-        let mut ranges = self
-            .sensors
-            .iter()
-            .filter_map(|s| s.range_at(y))
-            .collect::<Vec<_>>();
-        ranges.sort_by_key(|r| r.start);
-        for rng in ranges {
-            let clamped = xmax.max(rng.start)..rng.end;
-            found += clamped.len() - beacons_at_y.iter().filter(|b| clamped.contains(b)).count();
-            xmax = xmax.max(rng.end);
+        for r in self.xranges(y) {
+            found += r.len() - beacons_at_y.iter().filter(|b| r.contains(b)).count();
         }
         found
+    }
+
+    fn part2(&self, max: i32) -> i64 {
+        for y in 0..(max + 1) {
+            let rngs = self.xranges(y);
+            for i in 0..rngs.len() - 1 {
+                let (r1, r2) = (&rngs[i], &rngs[i + 1]);
+                let cand = r1.end;
+                if r2.start > cand && cand >= 0 && cand <= max {
+                    return (cand as i64) * 4_000_000 + (y as i64);
+                }
+            }
+        }
+        panic!("unreachable");
     }
 }
 
 fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let input = Input::parse(&arg);
-    println!("Part 1: {}", input.part1(2000000));
+    if arg.contains("sample") {
+        println!("Part 1: {}", input.part1(10));
+        println!("Part 2: {}", input.part2(20));
+    } else {
+        println!("Part 1: {}", input.part1(2000000));
+        println!("Part 2: {}", input.part2(4000000));
+    }
 }
