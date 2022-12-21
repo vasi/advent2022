@@ -17,6 +17,23 @@ struct Valve {
 
 const START: &str = "AA";
 
+#[derive(Clone)]
+struct Position {
+    turns_left: i32,
+    valve: String,
+}
+
+struct State {
+    opened: HashSet<String>,
+    positions: Vec<Position>,
+    score: i32,
+}
+
+struct Move {
+    idx: usize,
+    pos: Position,
+}
+
 #[derive(Debug)]
 struct Input {
     valves: HashMap<String, Valve>,
@@ -27,6 +44,7 @@ impl Input {
         let contents = fs::read_to_string(file).unwrap();
         let re =
             Regex::new(r"Valve (..) has flow rate=(\d+); tunnel.? lead.? to valve.? (.*)").unwrap();
+
         let mut valves = HashMap::new();
         for line in contents.lines() {
             let caps = re.captures(line).unwrap();
@@ -97,30 +115,79 @@ impl Input {
         Input { valves }
     }
 
-    fn part1_rec<'a>(
-        &'a self,
-        opened: &mut HashSet<&'a str>,
-        pos: &str,
-        start_score: i32,
-        turns_left: i32,
-    ) -> i32 {
-        let mut best = start_score;
-        let vstart = &self.valves[pos];
-        for tun in &vstart.tunnels {
-            let turns = turns_left - tun.len - 1;
-            if turns > 0 && !opened.contains(&tun.target as &str) {
-                opened.insert(&tun.target);
-                let vtarget = &self.valves[&tun.target];
-                let score = start_score + turns * vtarget.rate;
-                best = best.max(self.part1_rec(opened, &tun.target, score, turns));
-                opened.remove(&tun.target as &str);
+    fn valid_moves(&self, state: &State) -> Vec<Move> {
+        let mut ret = Vec::new();
+        let max_left = state.positions.iter().map(|p| p.turns_left).min().unwrap();
+
+        for idx in 0..state.positions.len() {
+            let pos = &state.positions[idx];
+            let vstart = &self.valves[&pos.valve];
+            for tun in &vstart.tunnels {
+                let turns_left = pos.turns_left - tun.len - 1;
+                if turns_left > 0 && turns_left <= max_left && !state.opened.contains(&tun.target) {
+                    ret.push(Move {
+                        idx: idx,
+                        pos: Position {
+                            turns_left,
+                            valve: tun.target.clone(),
+                        },
+                    })
+                }
             }
+        }
+
+        ret
+    }
+
+    fn next_state(&self, state: &State, mv: Move) -> State {
+        let target = &mv.pos.valve;
+        let score = state.score + &mv.pos.turns_left * self.valves[target].rate;
+
+        let mut opened = state.opened.clone();
+        opened.insert(target.clone());
+
+        let mut positions = state.positions.clone();
+        positions[mv.idx] = mv.pos;
+
+        State {
+            opened,
+            positions,
+            score,
+        }
+    }
+
+    fn solve(&self, state: &State) -> i32 {
+        let mut best = state.score;
+        for mv in self.valid_moves(&state) {
+            let next = self.next_state(&state, mv);
+            best = best.max(self.solve(&next));
         }
         best
     }
 
+    fn start_pos(&self, turns: i32) -> Position {
+        Position {
+            turns_left: turns,
+            valve: START.to_owned(),
+        }
+    }
+
     fn part1(&self) -> i32 {
-        self.part1_rec(&mut HashSet::new(), START, 0, 30)
+        let state = State {
+            opened: HashSet::new(),
+            positions: vec![self.start_pos(30)],
+            score: 0,
+        };
+        self.solve(&state)
+    }
+
+    fn part2(&self) -> i32 {
+        let state = State {
+            opened: HashSet::new(),
+            positions: vec![self.start_pos(26), self.start_pos(26)],
+            score: 0,
+        };
+        self.solve(&state)
     }
 }
 
@@ -128,4 +195,5 @@ fn main() {
     let arg = env::args().nth(1).expect("need arg");
     let input = Input::parse(&arg).simplify();
     println!("Part 1: {}", input.part1());
+    println!("Part 2: {}", input.part2());
 }
